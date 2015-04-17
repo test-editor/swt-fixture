@@ -42,6 +42,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -819,6 +820,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			list.add("de_de");
 			list.add("-configuration");
 			list.add(autConfiguration);
+			LOGGER.trace("Start List: " + Arrays.toString(list.toArray()));
 			ProcessBuilder builder = new ProcessBuilder(list);
 			builder.redirectErrorStream(true);
 			LOGGER.info("Start SWT-app-under-test");
@@ -1305,6 +1307,17 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean waitForButtonAndClick(String locator) {
 		return waitForButtonAndClick(locator, 30);
+	}
+
+	/**
+	 * Selects an entry in the active auto complete field.
+	 * 
+	 * @param item
+	 *            String to be selected in the auto complete list.
+	 * @return the result of the message.
+	 */
+	public boolean selectElementInAtuocompleteWidget(String item) {
+		return sendMessage("selectElementInAtuocompleteWidget" + COMMAND_DELIMITER + item);
 	}
 
 	/**
