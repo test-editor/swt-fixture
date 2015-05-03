@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -831,7 +832,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			boolean launched = false;
 			while (!launched) {
 				try {
-					Thread.sleep(100);
+					Thread.sleep(200);
 					LOGGER.info("waiting for launch");
 					launched = isLaunched();
 				} catch (InterruptedException e) {
@@ -1121,6 +1122,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			return Boolean.valueOf(s);
 		} catch (UnknownHostException e) {
 			LOGGER.error("isLaunched UnknownHostException: ", e);
+		} catch (ConnectException e) {
+			LOGGER.trace("Server not available.");
 		} catch (IOException e) {
 			LOGGER.error("isLaunched IOException: ", e);
 		}
@@ -1242,11 +1245,15 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Returns the path to the Workspace of the AUT. Relative paths are
+	 * converted to direct paths.
 	 * 
 	 * @return the path to the workspace of the AUT as String.
+	 * @throws IOException
+	 *             on looking up the real path.
 	 */
-	public String getWorkspacePath() {
-		return workspacePath;
+	public String getWorkspacePath() throws IOException {
+		return new File(workspacePath).getCanonicalPath();
 	}
 
 	/**
