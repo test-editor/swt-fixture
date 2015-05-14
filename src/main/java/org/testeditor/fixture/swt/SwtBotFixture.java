@@ -830,11 +830,17 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			createAndRunLoggerOnStream(process.getErrorStream(), true);
 			LOGGER.info("Output from SWT-app-under-test");
 			boolean launched = false;
+			int timeOut = 0;
 			while (!launched) {
 				try {
 					Thread.sleep(200);
 					LOGGER.info("waiting for launch");
 					launched = isLaunched();
+					timeOut++;
+					if (timeOut > 200) {
+						stopApplication();
+						throw new StopTestException("Time out launching AUT.");
+					}
 				} catch (InterruptedException e) {
 					LOGGER.error("startApplication InterruptedException: ", e);
 				}
