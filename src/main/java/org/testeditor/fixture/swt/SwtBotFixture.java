@@ -365,6 +365,20 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Compare the count of a list with expected count.
+	 * 
+	 * @param locator
+	 *            locator id of the widget with items.
+	 * @param expectedCount
+	 *            count of items in the widget.
+	 * @return true if the amount of items equals the expectedCount.
+	 */
+	public boolean countItemsEquals(String locator, String expectedCount) {
+		return sendMessage("countItemsEquals" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
+				+ expectedCount);
+	}
+
+	/**
 	 * 
 	 * @param locator
 	 *            locator-id or key of the button
@@ -511,6 +525,21 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 				+ getLocator(key));
 		return sendMessage("pressShortcutOfStyledText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
 				+ getLocator(key));
+	}
+
+	/**
+	 * sends the modificationKeys and the key to the active window.
+	 * 
+	 * @param modificationKeys
+	 *            the combination of SWT.ALT | SWT.CTRL | SWT.SHIFT |
+	 *            SWT.COMMAND.
+	 * @param key
+	 *            the character
+	 * @return true, after sending the keys
+	 */
+	public boolean pressGlobalShortcut(String modificationKeys, String key) {
+		return sendMessage("pressGlobalShortcut" + COMMAND_DELIMITER + getLocator(modificationKeys) + COMMAND_DELIMITER
+				+ key);
 	}
 
 	/**
