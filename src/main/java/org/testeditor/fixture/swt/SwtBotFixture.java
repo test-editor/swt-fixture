@@ -1318,6 +1318,33 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Creates TestStructure Files in the filesystem of a fitnesse backend
+	 * system. This method doesn't use the api for that and does no
+	 * notifications to the test-editor or fitnsse server.
+	 * 
+	 * @param destinationTestStructure
+	 *            full name of the new one
+	 * @return true on success
+	 * @throws IOException
+	 *             on creation error.
+	 */
+	public boolean createTestStructureFiles(String destinationTestStructure) {
+		String[] tsNameParts = destinationTestStructure.split("\\.");
+		try {
+			String destPath = getWorkspacePath() + File.separator + tsNameParts[0] + File.separator + "FitNesseRoot"
+					+ File.separator + destinationTestStructure.replaceAll("\\.", File.separator);
+			Path tsDir = Files.createDirectories(Paths.get(destPath));
+			LOGGER.trace("Created: " + tsDir.toAbsolutePath());
+			String xml = "<?xml version=\"1.0\"?><properties><Edit>true</Edit><Files>true</Files><Properties>true</Properties><RecentChanges>true</RecentChanges><Refactor>true</Refactor><Search>true</Search><Test/><Versions>true</Versions><WhereUsed>true</WhereUsed></properties>";
+			Files.write(Paths.get(destPath, "properties.xml"), xml.getBytes());
+			return new File(tsDir.toFile(), "content.txt").createNewFile();
+		} catch (Exception e) {
+			LOGGER.error("Error creating testobject from " + destinationTestStructure, e);
+		}
+		return false;
+	}
+
+	/**
 	 * Waits until a button is enabled.
 	 * 
 	 * @param locator
