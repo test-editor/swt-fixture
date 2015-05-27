@@ -374,6 +374,17 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * 
+	 * @param locator
+	 * @param expectedRowNumber
+	 */
+	public boolean checkRowNumberOfTable(String locator, String expectedRowNumber) {
+		return sendMessage("checkRowNumberOfTable" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
+				+ expectedRowNumber);
+
+	}
+
+	/**
 	 * sets playbacktime of SWTBot.
 	 * 
 	 * @param milliSeconds
@@ -863,6 +874,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 *             on Test execution
 	 */
 	protected void startJUnitApplication(String applicationPath, String workspace, String bundleDir) throws Exception {
+
 		try {
 			String autConfiguration = createAUTConfiguration(applicationPath, bundleDir);
 			ArrayList<String> list = new ArrayList<String>();
