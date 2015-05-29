@@ -18,14 +18,15 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.ConnectException;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -365,20 +366,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Compare the count of a list with expected count.
-	 * 
-	 * @param locator
-	 *            locator id of the widget with items.
-	 * @param expectedCount
-	 *            count of items in the widget.
-	 * @return true if the amount of items equals the expectedCount.
-	 */
-	public boolean countItemsEquals(String locator, String expectedCount) {
-		return sendMessage("countItemsEquals" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
-				+ expectedCount);
-	}
-
-	/**
 	 * 
 	 * @param locator
 	 *            locator-id or key of the button
@@ -536,21 +523,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 				+ getLocator(key));
 		return sendMessage("pressShortcutOfStyledText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
 				+ getLocator(key));
-	}
-
-	/**
-	 * sends the modificationKeys and the key to the active window.
-	 * 
-	 * @param modificationKeys
-	 *            the combination of SWT.ALT | SWT.CTRL | SWT.SHIFT |
-	 *            SWT.COMMAND.
-	 * @param key
-	 *            the character
-	 * @return true, after sending the keys
-	 */
-	public boolean pressGlobalShortcut(String modificationKeys, String key) {
-		return sendMessage("pressGlobalShortcut" + COMMAND_DELIMITER + getLocator(modificationKeys) + COMMAND_DELIMITER
-				+ key);
 	}
 
 	/**
@@ -861,7 +833,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			list.add("de_de");
 			list.add("-configuration");
 			list.add(autConfiguration);
-			LOGGER.trace("Start List: " + Arrays.toString(list.toArray()));
 			ProcessBuilder builder = new ProcessBuilder(list);
 			builder.redirectErrorStream(true);
 			LOGGER.info("Start SWT-app-under-test");
@@ -870,17 +841,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			createAndRunLoggerOnStream(process.getErrorStream(), true);
 			LOGGER.info("Output from SWT-app-under-test");
 			boolean launched = false;
-			int timeOut = 0;
 			while (!launched) {
 				try {
-					Thread.sleep(200);
+					Thread.sleep(100);
 					LOGGER.info("waiting for launch");
 					launched = isLaunched();
-					timeOut++;
-					if (timeOut > 200) {
-						stopApplication();
-						throw new StopTestException("Time out launching AUT.");
-					}
 				} catch (InterruptedException e) {
 					LOGGER.error("startApplication InterruptedException: ", e);
 				}
@@ -1169,8 +1134,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			return Boolean.valueOf(s);
 		} catch (UnknownHostException e) {
 			LOGGER.error("isLaunched UnknownHostException: ", e);
-		} catch (ConnectException e) {
-			LOGGER.trace("Server not available.");
 		} catch (IOException e) {
 			LOGGER.error("isLaunched IOException: ", e);
 		}
@@ -1292,15 +1255,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Returns the path to the Workspace of the AUT. Relative paths are
-	 * converted to direct paths.
 	 * 
 	 * @return the path to the workspace of the AUT as String.
-	 * @throws IOException
-	 *             on looking up the real path.
 	 */
-	public String getWorkspacePath() throws IOException {
-		return new File(workspacePath).getCanonicalPath();
+	public String getWorkspacePath() {
+		return workspacePath;
 	}
 
 	/**
@@ -1327,33 +1286,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		LOGGER.info("Property search in " + proprtyFileName + " with key " + propertyKey + " and value: "
 				+ propertyValue + " is: " + found);
 		return found;
-	}
-
-	/**
-	 * Creates TestStructure Files in the filesystem of a fitnesse backend
-	 * system. This method doesn't use the api for that and does no
-	 * notifications to the test-editor or fitnsse server.
-	 * 
-	 * @param destinationTestStructure
-	 *            full name of the new one
-	 * @return true on success
-	 * @throws IOException
-	 *             on creation error.
-	 */
-	public boolean createTestStructureFiles(String destinationTestStructure) {
-		String[] tsNameParts = destinationTestStructure.split("\\.");
-		try {
-			String destPath = getWorkspacePath() + File.separator + tsNameParts[0] + File.separator + "FitNesseRoot"
-					+ File.separator + destinationTestStructure.replaceAll("\\.", File.separator);
-			Path tsDir = Files.createDirectories(Paths.get(destPath));
-			LOGGER.trace("Created: " + tsDir.toAbsolutePath());
-			String xml = "<?xml version=\"1.0\"?><properties><Edit>true</Edit><Files>true</Files><Properties>true</Properties><RecentChanges>true</RecentChanges><Refactor>true</Refactor><Search>true</Search><Test/><Versions>true</Versions><WhereUsed>true</WhereUsed></properties>";
-			Files.write(Paths.get(destPath, "properties.xml"), xml.getBytes());
-			return new File(tsDir.toFile(), "content.txt").createNewFile();
-		} catch (Exception e) {
-			LOGGER.error("Error creating testobject from " + destinationTestStructure, e);
-		}
-		return false;
 	}
 
 	/**
@@ -1388,17 +1320,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean waitForButtonAndClick(String locator) {
 		return waitForButtonAndClick(locator, 30);
-	}
-
-	/**
-	 * Selects an entry in the active auto complete field.
-	 * 
-	 * @param item
-	 *            String to be selected in the auto complete list.
-	 * @return the result of the message.
-	 */
-	public boolean selectElementInAtuocompleteWidget(String item) {
-		return sendMessage("selectElementInAtuocompleteWidget" + COMMAND_DELIMITER + item);
 	}
 
 	/**
@@ -1493,4 +1414,137 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		return lines;
 	}
 
+	/**
+	 * Copy a File or a Directory inside the AUT workspace. Existing target
+	 * files / Directories are overwritten without warnings.
+	 *
+	 * @param relSourcePath
+	 *            the workspace relative path of the source file or directory to
+	 *            copy
+	 * @param relTargetPath
+	 *            the workspace relative path of the target file or directory
+	 */
+	public void copyInWorkspace(String relSourcePath, String relTargetPath) {
+
+		LOGGER.info("kopiere. " + relSourcePath + " nach " + relTargetPath);
+
+		File workspaceDir = new File(getWorkspacePath());
+		File source = new File(workspaceDir, relSourcePath);
+		File target = new File(workspaceDir, relTargetPath);
+		Path sourcePath = Paths.get(source.getAbsolutePath());
+		Path targetPath = Paths.get(target.getAbsolutePath());
+
+		if (!source.exists()) {
+			String msg = "cannot copy '" + source + "': File does not exist";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+		if (!source.canRead()) {
+			String msg = "cannot copy '" + source + "': File cannot be read";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+
+		if (source.isDirectory()) {
+			try {
+				copyFolder(sourcePath, targetPath);
+			} catch (IOException e) {
+				String msg = "cannot copy directory '" + source + "' to '" + target + "'";
+				LOGGER.error(msg, e);
+				throw new StopTestException(msg, e);
+			}
+		} else {
+			try {
+				Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+			} catch (IOException e) {
+				String msg = "cannot copy directory '" + source + "' to '" + target + "'";
+				LOGGER.error(msg, e);
+				throw new StopTestException(msg, e);
+			}
+		}
+
+	}
+
+	/**
+	 * delete a given file or directory in the workspace
+	 * 
+	 * @param relTargetPath
+	 *            the workspace relative path of the source file or directory to
+	 *            delete (recursively in the later case)
+	 */
+	public void deleteInWorkspace(String relTargetPath) {
+		File workspaceDir = new File(getWorkspacePath());
+		File target = new File(workspaceDir, relTargetPath);
+
+		if (target.exists()) {
+			if (target.isDirectory()) {
+				deleteFolder(target);
+			} else {
+				try {
+					Files.delete(target.toPath());
+				} catch (IOException e) {
+					String msg = "cannot delete file '" + target + "'";
+					LOGGER.error(msg, e);
+					throw new StopTestException(msg, e);
+				}
+			}
+		}
+
+	}
+
+	private void deleteFolder(File target) {
+		List<File> files = Arrays.asList(target.listFiles());
+		for (File file : files) {
+			if (file.isFile()) {
+				try {
+					Files.delete(file.toPath());
+				} catch (IOException e) {
+					String msg = "cannot delete file '" + target + "'";
+					LOGGER.error(msg, e);
+					throw new StopTestException(msg, e);
+				}
+			} else {
+				deleteFolder(file);
+			}
+		}
+		try {
+			Files.delete(target.toPath());
+		} catch (IOException e) {
+			String msg = "cannot delete file '" + target + "'";
+			LOGGER.error(msg, e);
+			throw new StopTestException(msg, e);
+		}
+	}
+
+	/**
+	 * create or overwrite a file in the workspace and fill it with the given
+	 * content.
+	 * 
+	 * @param relTargetPath
+	 *            the workspace relative path of the target file to create
+	 * @param content
+	 *            the content of the new file
+	 */
+	public void createFileInWorkspace(String relTargetPath, String content) {
+		File workspaceDir = new File(getWorkspacePath());
+		File target = new File(workspaceDir, relTargetPath);
+
+		deleteInWorkspace(relTargetPath);
+
+		try {
+			PrintWriter pw = new PrintWriter(target);
+			pw.print(content);
+			pw.close();
+		} catch (FileNotFoundException e) {
+			String msg = "cannot create file '" + target + "'";
+			LOGGER.error(msg, e);
+			throw new StopTestException(msg, e);
+		}
+
+	}
+
+	public boolean checkValueInDropDownBox(String dropDownBoxID, String value) {
+		return sendMessage("checkDropDownContains" + COMMAND_DELIMITER + getLocator(dropDownBoxID) + COMMAND_DELIMITER
+				+ value);
+	}
 }
