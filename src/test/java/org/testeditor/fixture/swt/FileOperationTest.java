@@ -15,8 +15,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+
+import util.FileUtil;
 
 public class FileOperationTest {
 
@@ -104,6 +107,26 @@ public class FileOperationTest {
 		fixture.deleteInWorkspace(source.getPath());
 
 		Assert.assertFalse("target dir still found", new File(workspace, source.getPath()).exists());
+	}
+
+	@After
+	public void tearDown() {
+		File targetdir = new File("targetdir");
+		if (targetdir.exists()) {
+			FileUtil.deleteFileSystemDirectory(targetdir);
+		}
+		File sourcedir = new File("sourcedir");
+		if (sourcedir.exists()) {
+			FileUtil.deleteFileSystemDirectory(sourcedir);
+		}
+		File target = new File("target.file");
+		if (target.exists()) {
+			FileUtil.deleteFile(target);
+		}
+		File source = new File("source.file");
+		if (source.exists()) {
+			FileUtil.deleteFile(source);
+		}
 	}
 
 }
