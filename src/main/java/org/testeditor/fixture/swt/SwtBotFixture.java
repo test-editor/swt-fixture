@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -1344,9 +1345,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean createTestStructureFiles(String destinationTestStructure) {
 		String[] tsNameParts = destinationTestStructure.split("\\.");
+
 		try {
 			String destPath = getWorkspacePath() + File.separator + tsNameParts[0] + File.separator + "FitNesseRoot"
-					+ File.separator + destinationTestStructure.replaceAll("\\.", File.separator);
+					+ File.separator
+					+ destinationTestStructure.replaceAll("\\.", Matcher.quoteReplacement(File.separator));
 			Path tsDir = Files.createDirectories(Paths.get(destPath));
 			LOGGER.trace("Created: " + tsDir.toAbsolutePath());
 			String xml = "<?xml version=\"1.0\"?><properties><Edit>true</Edit><Files>true</Files><Properties>true</Properties><RecentChanges>true</RecentChanges><Refactor>true</Refactor><Search>true</Search><Test/><Versions>true</Versions><WhereUsed>true</WhereUsed></properties>";
