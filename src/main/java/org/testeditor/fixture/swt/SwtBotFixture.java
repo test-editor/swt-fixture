@@ -9,9 +9,6 @@
  * Signal Iduna Corporation - initial API and implementation
  * akquinet AG
  *******************************************************************************/
-/**
- * 
- */
 package org.testeditor.fixture.swt;
 
 import java.io.BufferedReader;
@@ -82,6 +79,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 
 	private ElementListService elementListService;
 	private Process process;
+	private static boolean runningApp = false;
 	private String testName;
 	private Monitor javaMon;
 	private String workspacePath;
@@ -135,7 +133,10 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		} catch (InterruptedException e) {
 			LOGGER.error("stopApplication ", e);
 		} finally {
-			process.destroy();
+			if (process != null) {
+				process.destroy();
+			}
+			markApplicationStopped();
 		}
 	}
 
@@ -817,12 +818,18 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public void startApplication(String applicationPath) throws Exception {
 		try {
+			workspacePath = System.getProperty("aut.workspace.path");
+			if (workspacePath == null) {
+				LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
+			}
+			waitUntilPreviousLaunchIsFinished();
+			runningApp = true;
 			prepareAUTWorkspace();
 			if (!new File(applicationPath).exists()) {
 				LOGGER.info("AUT not found at: " + applicationPath);
 				throw new StopTestException("Executable of the AUT not found.");
 			}
-			LOGGER.info("AUT found");
+			LOGGER.info("AUT found.");
 
 			LOGGER.info("java.class.path : " + System.getProperty("java.class.path"));
 
@@ -901,7 +908,37 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Executes the AUT for lokal Debugging outsite the TE Context as an JUnit
+	 * Waits until a previous launch is terminated.
+	 * 
+	 * @throws InterruptedException
+	 *             while waiting.
+	 * 
+	 */
+	protected void waitUntilPreviousLaunchIsFinished() throws InterruptedException {
+		LOGGER.info("Already a process running? " + runningApp);
+		int count = 0;
+		while (runningApp) {
+			Thread.sleep(100);
+			count++;
+			if (count > 100) {
+				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up.");
+				stopApplication();
+			}
+		}
+	}
+
+	/**
+	 * Marks application as stopped.
+	 * 
+	 * @return true.
+	 */
+	public boolean markApplicationStopped() {
+		runningApp = false;
+		return true;
+	}
+
+	/**
+	 * Executes the AUT for local Debugging outsite the TE Context as an JUnit
 	 * Test.
 	 * 
 	 * @param applicationPath
@@ -970,12 +1007,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	private void prepareAUTWorkspace() throws IOException, URISyntaxException {
 
-		workspacePath = System.getProperty("aut.workspace.path");
-
-		if (workspacePath == null) {
-			LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
-		}
-
 		File wsPathFile = new File(workspacePath);
 		Path wsPath = wsPathFile.toPath();
 		if (wsPathFile.exists()) {
@@ -1041,7 +1072,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @param inputStream
 	 *            to piped to the logger.
 	 * @param errorStream
-	 *            if ture the logger uses the error level in other cases info.
+	 *            if true the logger uses the error level in other cases info.
 	 */
 	private void createAndRunLoggerOnStream(final InputStream inputStream, final boolean errorStream) {
 		new Thread(new Runnable() {
