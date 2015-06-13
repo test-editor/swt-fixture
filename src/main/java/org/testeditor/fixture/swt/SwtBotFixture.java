@@ -1118,7 +1118,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		String result = null;
 		fileInputStreamConfig = new FileInputStream(lookUpConfigIni(applicationPath));
 		properties.load(fileInputStreamConfig);
-
+		fileInputStreamConfig.close();
 		String bundles = properties.getProperty("osgi.bundles");
 		LOGGER.info("Bundle: " + swtBotAgentBundlePath);
 		// begin; This part is just for considering the testing of an swt
@@ -1142,6 +1142,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		result = file.getAbsolutePath() + File.separator + "config.ini";
 		fileOutputStream = new FileOutputStream(result);
 		properties.store(fileOutputStream, "Changed for TestEditor run.");
+		fileOutputStream.close();
 		LOGGER.info("New congfig.ini: " + result);
 		return new File(result).getParentFile().getAbsolutePath();
 	}
