@@ -70,4 +70,21 @@ public class SWTBotFixtureTest {
 		assertEquals(3, monitor.size());
 		assertTrue(monitor.contains("first finished"));
 	}
+
+	/**
+	 * Tests the tear Down operation.
+	 */
+	@Test
+	public void testTearDown() {
+		final Set<String> monitor = new HashSet<String>();
+		SwtBotFixture swtBotFixture = new SwtBotFixture() {
+			@Override
+			public void stopApplication() {
+				monitor.add("stop");
+			}
+		};
+		swtBotFixture.stopApplication();
+		assertTrue(monitor.contains("stop"));
+	}
+
 }
