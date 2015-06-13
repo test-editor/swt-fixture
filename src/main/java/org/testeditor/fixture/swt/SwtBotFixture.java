@@ -396,7 +396,9 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	/**
 	 * 
 	 * @param locator
+	 *            used to identify the table.
 	 * @param expectedRowNumber
+	 *            number of row.
 	 */
 	public boolean checkRowNumberOfTable(String locator, String expectedRowNumber) {
 		return sendMessage("checkRowNumberOfTable" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
