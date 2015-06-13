@@ -1054,10 +1054,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			}
 			DirectoryStream<Path> directoryStream = Files.newDirectoryStream(src);
 			for (Path path : directoryStream) {
-				// construct the src and dest file structure
 				Path srcFile = path;
 				Path destFile = Paths.get(dest.toString() + "/" + path.getFileName());
-				// recursive copy
 				copyFolder(srcFile, destFile);
 			}
 		} else {
