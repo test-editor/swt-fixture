@@ -88,7 +88,7 @@ public class FileOperationTest {
 		fixture.copyInWorkspace(source.getPath(), target.getPath());
 
 		Assert.assertTrue("target dir not found", new File(workspace, target.getPath()).exists());
-		Assert.assertTrue("target file not found", new File(workspace, "target\\a.file").exists());
+		Assert.assertTrue("target file not found", new File(workspace, "target" + File.separator + "a.file").exists());
 	}
 
 	@Test
@@ -97,7 +97,7 @@ public class FileOperationTest {
 		File workspace = new File(".").getAbsoluteFile();
 		SwtBotFixture fixture = new TestSwtBotFixture(workspace.getAbsolutePath());
 
-		File source = new File("targetdir\\innerdir");
+		File source = new File("targetdir" + File.separator + "innerdir");
 		File absSource = new File(workspace, source.getPath());
 		absSource.mkdirs();
 		PrintWriter pw = new PrintWriter(new File(absSource, "a.file"));

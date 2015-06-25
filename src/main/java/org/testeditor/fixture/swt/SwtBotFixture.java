@@ -9,9 +9,6 @@
  * Signal Iduna Corporation - initial API and implementation
  * akquinet AG
  *******************************************************************************/
-/**
- * 
- */
 package org.testeditor.fixture.swt;
 
 import java.io.BufferedReader;
@@ -50,6 +47,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -81,6 +79,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 
 	private ElementListService elementListService;
 	private Process process;
+	private static boolean runningApp = false;
 	private String testName;
 	private Monitor javaMon;
 	private String workspacePath;
@@ -134,7 +133,10 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		} catch (InterruptedException e) {
 			LOGGER.error("stopApplication ", e);
 		} finally {
-			process.destroy();
+			if (process != null) {
+				process.destroy();
+			}
+			markApplicationStopped();
 		}
 	}
 
@@ -394,7 +396,9 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	/**
 	 * 
 	 * @param locator
+	 *            used to identify the table.
 	 * @param expectedRowNumber
+	 *            number of row.
 	 */
 	public boolean checkRowNumberOfTable(String locator, String expectedRowNumber) {
 		return sendMessage("checkRowNumberOfTable" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
@@ -816,12 +820,18 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public void startApplication(String applicationPath) throws Exception {
 		try {
+			workspacePath = System.getProperty("aut.workspace.path");
+			if (workspacePath == null) {
+				LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
+			}
+			waitUntilPreviousLaunchIsFinished();
+			runningApp = true;
 			prepareAUTWorkspace();
 			if (!new File(applicationPath).exists()) {
 				LOGGER.info("AUT not found at: " + applicationPath);
 				throw new StopTestException("Executable of the AUT not found.");
 			}
-			LOGGER.info("AUT found");
+			LOGGER.info("AUT found.");
 
 			LOGGER.info("java.class.path : " + System.getProperty("java.class.path"));
 
@@ -900,7 +910,37 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Executes the AUT for lokal Debugging outsite the TE Context as an JUnit
+	 * Waits until a previous launch is terminated.
+	 * 
+	 * @throws InterruptedException
+	 *             while waiting.
+	 * 
+	 */
+	protected void waitUntilPreviousLaunchIsFinished() throws InterruptedException {
+		LOGGER.info("Already a process running? " + runningApp);
+		int count = 0;
+		while (runningApp) {
+			Thread.sleep(100);
+			count++;
+			if (count > 100) {
+				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up.");
+				stopApplication();
+			}
+		}
+	}
+
+	/**
+	 * Marks application as stopped.
+	 * 
+	 * @return true.
+	 */
+	public boolean markApplicationStopped() {
+		runningApp = false;
+		return true;
+	}
+
+	/**
+	 * Executes the AUT for local Debugging outsite the TE Context as an JUnit
 	 * Test.
 	 * 
 	 * @param applicationPath
@@ -969,12 +1009,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	private void prepareAUTWorkspace() throws IOException, URISyntaxException {
 
-		workspacePath = System.getProperty("aut.workspace.path");
-
-		if (workspacePath == null) {
-			LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
-		}
-
 		File wsPathFile = new File(workspacePath);
 		Path wsPath = wsPathFile.toPath();
 		if (wsPathFile.exists()) {
@@ -1022,10 +1056,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			}
 			DirectoryStream<Path> directoryStream = Files.newDirectoryStream(src);
 			for (Path path : directoryStream) {
-				// construct the src and dest file structure
 				Path srcFile = path;
 				Path destFile = Paths.get(dest.toString() + "/" + path.getFileName());
-				// recursive copy
 				copyFolder(srcFile, destFile);
 			}
 		} else {
@@ -1040,7 +1072,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @param inputStream
 	 *            to piped to the logger.
 	 * @param errorStream
-	 *            if ture the logger uses the error level in other cases info.
+	 *            if true the logger uses the error level in other cases info.
 	 */
 	private void createAndRunLoggerOnStream(final InputStream inputStream, final boolean errorStream) {
 		new Thread(new Runnable() {
@@ -1086,7 +1118,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		String result = null;
 		fileInputStreamConfig = new FileInputStream(lookUpConfigIni(applicationPath));
 		properties.load(fileInputStreamConfig);
-
+		fileInputStreamConfig.close();
 		String bundles = properties.getProperty("osgi.bundles");
 		LOGGER.info("Bundle: " + swtBotAgentBundlePath);
 		// begin; This part is just for considering the testing of an swt
@@ -1110,6 +1142,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		result = file.getAbsolutePath() + File.separator + "config.ini";
 		fileOutputStream = new FileOutputStream(result);
 		properties.store(fileOutputStream, "Changed for TestEditor run.");
+		fileOutputStream.close();
 		LOGGER.info("New congfig.ini: " + result);
 		return new File(result).getParentFile().getAbsolutePath();
 	}
@@ -1344,9 +1377,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean createTestStructureFiles(String destinationTestStructure) {
 		String[] tsNameParts = destinationTestStructure.split("\\.");
+
 		try {
 			String destPath = getWorkspacePath() + File.separator + tsNameParts[0] + File.separator + "FitNesseRoot"
-					+ File.separator + destinationTestStructure.replaceAll("\\.", File.separator);
+					+ File.separator
+					+ destinationTestStructure.replaceAll("\\.", Matcher.quoteReplacement(File.separator));
 			Path tsDir = Files.createDirectories(Paths.get(destPath));
 			LOGGER.trace("Created: " + tsDir.toAbsolutePath());
 			String xml = "<?xml version=\"1.0\"?><properties><Edit>true</Edit><Files>true</Files><Properties>true</Properties><RecentChanges>true</RecentChanges><Refactor>true</Refactor><Search>true</Search><Test/><Versions>true</Versions><WhereUsed>true</WhereUsed></properties>";

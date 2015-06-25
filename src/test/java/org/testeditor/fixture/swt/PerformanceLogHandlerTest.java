@@ -147,7 +147,7 @@ public class PerformanceLogHandlerTest {
 
 				Monitor mon = MonitorFactory.start(label + i);
 
-				Thread.sleep(10 + new Random().nextInt(1000));
+				Thread.sleep(10 + new Random().nextInt(100));
 
 				mon.stop();
 
