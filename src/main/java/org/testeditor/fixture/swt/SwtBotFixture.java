@@ -898,6 +898,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 				}
 			}
 			LOGGER.info("SWT-app-under-test is ready for test");
+			sendMessage("setTestName" + COMMAND_DELIMITER + testName);
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
@@ -923,7 +924,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			Thread.sleep(100);
 			count++;
 			if (count > 100) {
-				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up.");
+				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up for test: " + testName
+						+ ".");
 				stopApplication();
 			}
 		}
@@ -1193,7 +1195,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	private boolean isLaunched() {
 		try {
 			Socket client = getSocket();
-			LOGGER.info("Is server ready?");
+			LOGGER.info("Is server ready for " + testName + "?");
 			PrintStream os = new PrintStream(client.getOutputStream(), false, CHARSET_UTF_8);
 			os.println("isLaunched");
 			os.flush();
