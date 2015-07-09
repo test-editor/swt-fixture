@@ -82,7 +82,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	private static boolean runningApp = false;
 	private String testName;
 	private Monitor javaMon;
-	private String workspacePath;
 
 	/**
 	 * Creates the element list instance representing the GUI-Map for widget
@@ -820,8 +819,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public void startApplication(String applicationPath) throws Exception {
 		try {
-			workspacePath = System.getProperty("aut.workspace.path");
-			if (workspacePath == null) {
+			if (System.getProperty("aut.workspace.path") == null) {
 				LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
 			}
 			waitUntilPreviousLaunchIsFinished();
@@ -836,9 +834,6 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			LOGGER.info("java.class.path : " + System.getProperty("java.class.path"));
 
 			String swtBotAgnetBundlePath = System.getProperty("SWT_BOT_AGENT_BUNDLE_PATH");
-			// new
-			// File(System.getProperty("java.class.path")).getParentFile().getParentFile()
-			// .getParentFile().getAbsolutePath();
 
 			String autConfiguration = createAUTConfiguration(applicationPath, swtBotAgnetBundlePath);
 			ArrayList<String> list = new ArrayList<String>();
@@ -860,14 +855,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			list.add("-aut");
 			list.add("org.eclipse.e4.ui.workbench.swt.E4Application");
 			list.add("-data");
-
-			String workspacePath = System.getProperty("aut.workspace.path");
-
-			if (workspacePath != null) {
-				list.add(workspacePath);
-			} else {
-				list.add("@user.home/.testeditor_aut");
-			}
+			list.add(getWorkspacePath());
 
 			list.add("-nl");
 			list.add("de_de");
@@ -926,7 +914,18 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			if (count > 100) {
 				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up for test: " + testName
 						+ ".");
-				stopApplication();
+				try {
+					List<String> allLines = Files.readAllLines(new File(new File(getWorkspacePath(), ".metadata"),
+							".log").toPath(), Charset.forName("UTF-8"));
+					LOGGER.error("AUT .log content:");
+					for (String string : allLines) {
+						LOGGER.error(string);
+					}
+				} catch (Exception e) {
+					LOGGER.error("Error reading .log of AUT.", e);
+				} finally {
+					stopApplication();
+				}
 			}
 		}
 	}
@@ -1011,11 +1010,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	private void prepareAUTWorkspace() throws IOException, URISyntaxException {
 
-		File wsPathFile = new File(workspacePath);
+		File wsPathFile = new File(getWorkspacePath());
 		Path wsPath = wsPathFile.toPath();
 		if (wsPathFile.exists()) {
 			Files.walkFileTree(wsPath, getDeleteFileVisitor());
-			LOGGER.info("Removed AUT_WS: " + workspacePath);
+			LOGGER.info("Removed AUT_WS: " + getWorkspacePath());
 		}
 		Files.createDirectory(wsPath);
 		Map<String, String> env = new HashMap<String, String>();
@@ -1031,13 +1030,13 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 					URI uriDemoZip = new URI("jar:" + Paths.get(wsPath.toString(), "/DemoWebTests.zip").toUri());
 					LOGGER.info(uriDemoZip);
 					FileSystem zipFs = FileSystems.newFileSystem(uriDemoZip, env);
-					copyFolder(zipFs.getPath("/"), Paths.get(workspacePath));
+					copyFolder(zipFs.getPath("/"), Paths.get(getWorkspacePath()));
 					zipFs.close();
 				}
 			}
 		}
 		fs.close();
-		LOGGER.info("Created Demoproject in: " + workspacePath);
+		LOGGER.info("Created Demoproject in: " + getWorkspacePath());
 	}
 
 	/**
@@ -1337,6 +1336,12 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 *             on looking up the real path.
 	 */
 	public String getWorkspacePath() throws IOException {
+		String workspacePath = System.getProperty("aut.workspace.path");
+
+		if (workspacePath == null) {
+			workspacePath = "@user.home/.testeditor_aut";
+		}
+
 		return new File(workspacePath).getCanonicalPath();
 	}
 

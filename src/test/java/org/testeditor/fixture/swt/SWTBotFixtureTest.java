@@ -12,6 +12,8 @@
 package org.testeditor.fixture.swt;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
@@ -85,6 +87,16 @@ public class SWTBotFixtureTest {
 		};
 		swtBotFixture.stopApplication();
 		assertTrue(monitor.contains("stop"));
+	}
+
+	@Test
+	public void testGetWorkspacePath() throws Exception {
+		SwtBotFixture swtBotFixture = new SwtBotFixture();
+		String userHomePath = swtBotFixture.getWorkspacePath();
+		assertNotNull(userHomePath);
+		System.setProperty("aut.workspace.path", "/tmp/ws");
+		String externalPath = swtBotFixture.getWorkspacePath();
+		assertFalse(userHomePath.equals(externalPath));
 	}
 
 }
