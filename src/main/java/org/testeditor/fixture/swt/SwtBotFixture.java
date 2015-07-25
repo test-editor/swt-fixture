@@ -82,6 +82,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	private static boolean runningApp = false;
 	private String testName;
 	private Monitor javaMon;
+	private List<String> launchApplicationCommandList;
 
 	/**
 	 * Creates the element list instance representing the GUI-Map for widget
@@ -261,6 +262,24 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean clickButton(String locator) {
 		return sendMessage("clickButton" + COMMAND_DELIMITER + getLocator(locator));
+	}
+
+	/**
+	 * Starts the Application again. The workspace is not dropped and recreated.
+	 * It used also the previous launch configuration of the
+	 * 
+	 * @return true if the new start of the application works.
+	 */
+	public boolean startApplicationAgain() {
+		try {
+			LOGGER.info("Start the application again. The last workspace is used.");
+			waitUntilPreviousLaunchIsFinished();
+			createAndLaunchProcess();
+		} catch (Exception e) {
+			LOGGER.error("Error Test execution: ", e);
+			throw new StopTestException(e);
+		}
+		return true;
 	}
 
 	/**
@@ -836,65 +855,75 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			String swtBotAgnetBundlePath = System.getProperty("SWT_BOT_AGENT_BUNDLE_PATH");
 
 			String autConfiguration = createAUTConfiguration(applicationPath, swtBotAgnetBundlePath);
-			ArrayList<String> list = new ArrayList<String>();
+			launchApplicationCommandList = new ArrayList<String>();
 
 			// if the AUT is a MAC OS X binary
 			if (applicationPath.endsWith(".app")) {
-				list.add("open");
-				list.add(applicationPath);
-				list.add("--args");
+				launchApplicationCommandList.add("open");
+				launchApplicationCommandList.add(applicationPath);
+				launchApplicationCommandList.add("--args");
 			}
 			// for all other binaries (Linux, Windows)
 			else {
-				list.add(applicationPath);
+				launchApplicationCommandList.add(applicationPath);
 			}
 
-			list.add("-clean");
-			list.add("-application");
-			list.add("org.testeditor.agent.swtbot.TestEditorSWTBotAgent");
-			list.add("-aut");
-			list.add("org.eclipse.e4.ui.workbench.swt.E4Application");
-			list.add("-data");
-			list.add(getWorkspacePath());
+			launchApplicationCommandList.add("-clean");
+			launchApplicationCommandList.add("-application");
+			launchApplicationCommandList.add("org.testeditor.agent.swtbot.TestEditorSWTBotAgent");
+			launchApplicationCommandList.add("-aut");
+			launchApplicationCommandList.add("org.eclipse.e4.ui.workbench.swt.E4Application");
+			launchApplicationCommandList.add("-data");
+			launchApplicationCommandList.add(getWorkspacePath());
 
-			list.add("-nl");
-			list.add("de_de");
-			list.add("-configuration");
-			list.add(autConfiguration);
-			LOGGER.trace("Start List: " + Arrays.toString(list.toArray()));
-			ProcessBuilder builder = new ProcessBuilder(list);
-			builder.redirectErrorStream(true);
-			LOGGER.info("Start SWT-app-under-test");
-			process = builder.start();
-			createAndRunLoggerOnStream(process.getInputStream(), false);
-			createAndRunLoggerOnStream(process.getErrorStream(), true);
-			LOGGER.info("Output from SWT-app-under-test");
-			boolean launched = false;
-			int timeOut = 0;
-			while (!launched) {
-				try {
-					Thread.sleep(200);
-					LOGGER.info("waiting for launch");
-					launched = isLaunched();
-					timeOut++;
-					if (timeOut > 200) {
-						stopApplication();
-						throw new StopTestException("Time out launching AUT.");
-					}
-				} catch (InterruptedException e) {
-					LOGGER.error("startApplication InterruptedException: ", e);
-				}
-			}
-			LOGGER.info("SWT-app-under-test is ready for test");
-			sendMessage("setTestName" + COMMAND_DELIMITER + testName);
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				LOGGER.error("startApplication InterruptedException: ", e);
-			}
+			launchApplicationCommandList.add("-nl");
+			launchApplicationCommandList.add("de_de");
+			launchApplicationCommandList.add("-configuration");
+			launchApplicationCommandList.add(autConfiguration);
+			createAndLaunchProcess();
 		} catch (Exception exp) {
 			LOGGER.error("Error Test execution: ", exp);
 			throw new StopTestException(exp);
+		}
+	}
+
+	/**
+	 * Creates and launches the Process for the AUT.
+	 * 
+	 * @throws Exception
+	 *             on problems to create the AUT process.
+	 */
+	private void createAndLaunchProcess() throws Exception {
+		LOGGER.trace("Start List: " + Arrays.toString(launchApplicationCommandList.toArray()));
+		ProcessBuilder builder = new ProcessBuilder(launchApplicationCommandList);
+		builder.redirectErrorStream(true);
+		LOGGER.info("Start SWT-app-under-test");
+		process = builder.start();
+		createAndRunLoggerOnStream(process.getInputStream(), false);
+		createAndRunLoggerOnStream(process.getErrorStream(), true);
+		LOGGER.info("Output from SWT-app-under-test");
+		boolean launched = false;
+		int timeOut = 0;
+		while (!launched) {
+			try {
+				Thread.sleep(200);
+				LOGGER.info("waiting for launch");
+				launched = isLaunched();
+				timeOut++;
+				if (timeOut > 200) {
+					stopApplication();
+					throw new StopTestException("Time out launching AUT.");
+				}
+			} catch (InterruptedException e) {
+				LOGGER.error("startApplication InterruptedException: ", e);
+			}
+		}
+		LOGGER.info("SWT-app-under-test is ready for test");
+		sendMessage("setTestName" + COMMAND_DELIMITER + testName);
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			LOGGER.error("startApplication InterruptedException: ", e);
 		}
 	}
 
