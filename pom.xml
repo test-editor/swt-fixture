@@ -59,7 +59,7 @@
 		<dependency>
 			<groupId>org.testeditor.fixture</groupId>
 			<artifactId>core-fixture</artifactId>
-			<version>1.7.2-SNAPSHOT</version>
+			<version>1.8.2-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
