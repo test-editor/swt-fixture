@@ -9,22 +9,22 @@
  * Signal Iduna Corporation - initial API and implementation
  * akquinet AG
  *******************************************************************************/
-/**
- * 
- */
 package org.testeditor.fixture.swt;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -42,10 +42,12 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -77,9 +79,10 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 
 	private ElementListService elementListService;
 	private Process process;
+	private static boolean runningApp = false;
 	private String testName;
 	private Monitor javaMon;
-	private String workspacePath;
+	private List<String> launchApplicationCommandList;
 
 	/**
 	 * Creates the element list instance representing the GUI-Map for widget
@@ -130,7 +133,10 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		} catch (InterruptedException e) {
 			LOGGER.error("stopApplication ", e);
 		} finally {
-			process.destroy();
+			if (process != null) {
+				process.destroy();
+			}
+			markApplicationStopped();
 		}
 	}
 
@@ -259,6 +265,24 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Starts the Application again. The workspace is not dropped and recreated.
+	 * It used also the previous launch configuration of the
+	 * 
+	 * @return true if the new start of the application works.
+	 */
+	public boolean startApplicationAgain() {
+		try {
+			LOGGER.info("Start the application again. The last workspace is used.");
+			waitUntilPreviousLaunchIsFinished();
+			createAndLaunchProcess();
+		} catch (Exception e) {
+			LOGGER.error("Error Test execution: ", e);
+			throw new StopTestException(e);
+		}
+		return true;
+	}
+
+	/**
 	 * 
 	 * @param locator
 	 *            locator-id or key of the check box or the check box label
@@ -363,6 +387,20 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Compare the count of a list with expected count.
+	 * 
+	 * @param locator
+	 *            locator id of the widget with items.
+	 * @param expectedCount
+	 *            count of items in the widget.
+	 * @return true if the amount of items equals the expectedCount.
+	 */
+	public boolean countItemsEquals(String locator, String expectedCount) {
+		return sendMessage(
+				"countItemsEquals" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + expectedCount);
+	}
+
+	/**
 	 * 
 	 * @param locator
 	 *            locator-id or key of the button
@@ -376,7 +414,9 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	/**
 	 * 
 	 * @param locator
+	 *            used to identify the table.
 	 * @param expectedRowNumber
+	 *            number of row.
 	 */
 	public boolean checkRowNumberOfTable(String locator, String expectedRowNumber) {
 		return sendMessage("checkRowNumberOfTable" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
@@ -398,7 +438,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Waits for the given period of time before executing the next command.<br />
+	 * Waits for the given period of time before executing the next command.
+	 * <br />
 	 * 
 	 * @param timeToWait
 	 *            Time to wait in seconds
@@ -485,7 +526,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return the result of the message.
 	 */
 	public boolean compareLabelByIdTextNotInWidget(String locator, String comptext) {
-		return !sendMessage("compareLabelById" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + comptext);
+		return !sendMessage(
+				"compareLabelById" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + comptext);
 	}
 
 	/**
@@ -523,6 +565,21 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * sends the modificationKeys and the key to the active window.
+	 * 
+	 * @param modificationKeys
+	 *            the combination of SWT.ALT | SWT.CTRL | SWT.SHIFT |
+	 *            SWT.COMMAND.
+	 * @param key
+	 *            the character
+	 * @return true, after sending the keys
+	 */
+	public boolean pressGlobalShortcut(String modificationKeys, String key) {
+		return sendMessage(
+				"pressGlobalShortcut" + COMMAND_DELIMITER + getLocator(modificationKeys) + COMMAND_DELIMITER + key);
+	}
+
+	/**
 	 * 
 	 * @param locator
 	 *            locator-id or key of the styled-text.
@@ -531,8 +588,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return the result of the message.
 	 */
 	public boolean selectLineInText(String locator, String lineNumber) {
-		return sendMessage("selectLineInText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
-				+ lineNumber);
+		return sendMessage(
+				"selectLineInText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + lineNumber);
 	}
 
 	/**
@@ -643,8 +700,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean compareTextInStyledById(String id, String compText) {
 		LOGGER.info("compareTextInStyledById " + id + " " + compText);
-		return sendMessage("compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER
-				+ compText);
+		return sendMessage(
+				"compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER + compText);
 	}
 
 	/**
@@ -659,8 +716,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean compareTextNotInStyledById(String id, String compText) {
 		LOGGER.info("compareTextInStyledById " + id + " " + compText);
-		return !sendMessage("compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER
-				+ compText);
+		return !sendMessage(
+				"compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER + compText);
 	}
 
 	/**
@@ -673,8 +730,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return true, if the text is found, else false
 	 */
 	public boolean checkTextNotExistInWidgets(String locator, String text) {
-		return !sendMessage("checkTextExistInWidgets" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
-				+ text);
+		return !sendMessage(
+				"checkTextExistInWidgets" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + text);
 	}
 
 	/**
@@ -734,8 +791,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean isFitNesseProjectServerRunning(String port, String projectName) {
 
-		HttpGet httpGet = new HttpGet(getFitnesseUrl(port) + projectName + "?search&searchString=" + projectName
-				+ "&searchType=title");
+		HttpGet httpGet = new HttpGet(
+				getFitnesseUrl(port) + projectName + "?search&searchString=" + projectName + "&searchType=title");
 		httpGet.setHeader("Content-Type", "application/json");
 
 		String strOfWikiPages;
@@ -783,76 +840,49 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public void startApplication(String applicationPath) throws Exception {
 		try {
+			if (System.getProperty("aut.workspace.path") == null) {
+				LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
+			}
+			waitUntilPreviousLaunchIsFinished();
+			runningApp = true;
 			prepareAUTWorkspace();
 			if (!new File(applicationPath).exists()) {
 				LOGGER.info("AUT not found at: " + applicationPath);
 				throw new StopTestException("Executable of the AUT not found.");
 			}
-			LOGGER.info("AUT found");
+			LOGGER.info("AUT found at: " + applicationPath);
 
 			LOGGER.info("java.class.path : " + System.getProperty("java.class.path"));
 
 			String swtBotAgnetBundlePath = System.getProperty("SWT_BOT_AGENT_BUNDLE_PATH");
-			// new
-			// File(System.getProperty("java.class.path")).getParentFile().getParentFile()
-			// .getParentFile().getAbsolutePath();
 
 			String autConfiguration = createAUTConfiguration(applicationPath, swtBotAgnetBundlePath);
-			ArrayList<String> list = new ArrayList<String>();
+			launchApplicationCommandList = new ArrayList<String>();
 
 			// if the AUT is a MAC OS X binary
 			if (applicationPath.endsWith(".app")) {
-				list.add("open");
-				list.add(applicationPath);
-				list.add("--args");
+				launchApplicationCommandList.add("open");
+				launchApplicationCommandList.add(applicationPath);
+				launchApplicationCommandList.add("--args");
 			}
 			// for all other binaries (Linux, Windows)
 			else {
-				list.add(applicationPath);
+				launchApplicationCommandList.add(applicationPath);
 			}
 
-			list.add("-clean");
-			list.add("-application");
-			list.add("org.testeditor.agent.swtbot.TestEditorSWTBotAgent");
-			list.add("-aut");
-			list.add("org.eclipse.e4.ui.workbench.swt.E4Application");
-			list.add("-data");
+			launchApplicationCommandList.add("-clean");
+			launchApplicationCommandList.add("-application");
+			launchApplicationCommandList.add("org.testeditor.agent.swtbot.TestEditorSWTBotAgent");
+			launchApplicationCommandList.add("-aut");
+			launchApplicationCommandList.add("org.eclipse.e4.ui.workbench.swt.E4Application");
+			launchApplicationCommandList.add("-data");
+			launchApplicationCommandList.add(getWorkspacePath());
 
-			String workspacePath = System.getProperty("aut.workspace.path");
-
-			if (workspacePath != null) {
-				list.add(workspacePath);
-			} else {
-				list.add("@user.home/.testeditor_aut");
-			}
-
-			list.add("-nl");
-			list.add("de_de");
-			list.add("-configuration");
-			list.add(autConfiguration);
-			ProcessBuilder builder = new ProcessBuilder(list);
-			builder.redirectErrorStream(true);
-			LOGGER.info("Start SWT-app-under-test");
-			process = builder.start();
-			createAndRunLoggerOnStream(process.getInputStream(), false);
-			createAndRunLoggerOnStream(process.getErrorStream(), true);
-			LOGGER.info("Output from SWT-app-under-test");
-			boolean launched = false;
-			while (!launched) {
-				try {
-					Thread.sleep(100);
-					LOGGER.info("waiting for launch");
-					launched = isLaunched();
-				} catch (InterruptedException e) {
-					LOGGER.error("startApplication InterruptedException: ", e);
-				}
-			}
-			LOGGER.info("SWT-app-under-test is ready for test");
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				LOGGER.error("startApplication InterruptedException: ", e);
-			}
+			launchApplicationCommandList.add("-nl");
+			launchApplicationCommandList.add("de_de");
+			launchApplicationCommandList.add("-configuration");
+			launchApplicationCommandList.add(autConfiguration);
+			createAndLaunchProcess();
 		} catch (Exception exp) {
 			LOGGER.error("Error Test execution: ", exp);
 			throw new StopTestException(exp);
@@ -860,7 +890,90 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Executes the AUT for lokal Debugging outsite the TE Context as an JUnit
+	 * Creates and launches the Process for the AUT.
+	 * 
+	 * @throws Exception
+	 *             on problems to create the AUT process.
+	 */
+	private void createAndLaunchProcess() throws Exception {
+		LOGGER.trace("Start List: " + Arrays.toString(launchApplicationCommandList.toArray()));
+		ProcessBuilder builder = new ProcessBuilder(launchApplicationCommandList);
+		builder.redirectErrorStream(true);
+		LOGGER.info("Start SWT-app-under-test");
+		process = builder.start();
+		createAndRunLoggerOnStream(process.getInputStream(), false);
+		createAndRunLoggerOnStream(process.getErrorStream(), true);
+		LOGGER.info("Output from SWT-app-under-test");
+		boolean launched = false;
+		int timeOut = 0;
+		while (!launched) {
+			try {
+				Thread.sleep(200);
+				LOGGER.info("waiting for launch");
+				launched = isLaunched();
+				timeOut++;
+				if (timeOut > 200) {
+					stopApplication();
+					throw new StopTestException("Time out launching AUT.");
+				}
+			} catch (InterruptedException e) {
+				LOGGER.error("startApplication InterruptedException: ", e);
+			}
+		}
+		LOGGER.info("SWT-app-under-test is ready for test");
+		sendMessage("setTestName" + COMMAND_DELIMITER + testName);
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			LOGGER.error("startApplication InterruptedException: ", e);
+		}
+	}
+
+	/**
+	 * Waits until a previous launch is terminated.
+	 * 
+	 * @throws InterruptedException
+	 *             while waiting.
+	 * 
+	 */
+	protected void waitUntilPreviousLaunchIsFinished() throws InterruptedException {
+		LOGGER.info("Already a process running? " + runningApp);
+		int count = 0;
+		while (runningApp) {
+			Thread.sleep(100);
+			count++;
+			if (count > 100) {
+				LOGGER.error(
+						">>>>>>> Old process blocks AUT start for 10 seconds. Giving up for test: " + testName + ".");
+				try {
+					List<String> allLines = Files.readAllLines(
+							new File(new File(getWorkspacePath(), ".metadata"), ".log").toPath(),
+							Charset.forName("UTF-8"));
+					LOGGER.error("AUT .log content:");
+					for (String string : allLines) {
+						LOGGER.error(string);
+					}
+				} catch (Exception e) {
+					LOGGER.error("Error reading .log of AUT.", e);
+				} finally {
+					stopApplication();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Marks application as stopped.
+	 * 
+	 * @return true.
+	 */
+	public boolean markApplicationStopped() {
+		runningApp = false;
+		return true;
+	}
+
+	/**
+	 * Executes the AUT for local Debugging outsite the TE Context as an JUnit
 	 * Test.
 	 * 
 	 * @param applicationPath
@@ -929,17 +1042,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	private void prepareAUTWorkspace() throws IOException, URISyntaxException {
 
-		workspacePath = System.getProperty("aut.workspace.path");
-
-		if (workspacePath == null) {
-			LOGGER.error("Workspace path <aut.workspace.path> for the aut is not set.");
-		}
-
-		File wsPathFile = new File(workspacePath);
+		File wsPathFile = new File(getWorkspacePath());
 		Path wsPath = wsPathFile.toPath();
 		if (wsPathFile.exists()) {
 			Files.walkFileTree(wsPath, getDeleteFileVisitor());
-			LOGGER.info("Removed AUT_WS: " + workspacePath);
+			LOGGER.info("Removed AUT_WS: " + getWorkspacePath());
 		}
 		Files.createDirectory(wsPath);
 		Map<String, String> env = new HashMap<String, String>();
@@ -955,13 +1062,13 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 					URI uriDemoZip = new URI("jar:" + Paths.get(wsPath.toString(), "/DemoWebTests.zip").toUri());
 					LOGGER.info(uriDemoZip);
 					FileSystem zipFs = FileSystems.newFileSystem(uriDemoZip, env);
-					copyFolder(zipFs.getPath("/"), Paths.get(workspacePath));
+					copyFolder(zipFs.getPath("/"), Paths.get(getWorkspacePath()));
 					zipFs.close();
 				}
 			}
 		}
 		fs.close();
-		LOGGER.info("Created Demoproject in: " + workspacePath);
+		LOGGER.info("Created Demoproject in: " + getWorkspacePath());
 	}
 
 	/**
@@ -982,10 +1089,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			}
 			DirectoryStream<Path> directoryStream = Files.newDirectoryStream(src);
 			for (Path path : directoryStream) {
-				// construct the src and dest file structure
 				Path srcFile = path;
 				Path destFile = Paths.get(dest.toString() + "/" + path.getFileName());
-				// recursive copy
 				copyFolder(srcFile, destFile);
 			}
 		} else {
@@ -1000,7 +1105,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @param inputStream
 	 *            to piped to the logger.
 	 * @param errorStream
-	 *            if ture the logger uses the error level in other cases info.
+	 *            if true the logger uses the error level in other cases info.
 	 */
 	private void createAndRunLoggerOnStream(final InputStream inputStream, final boolean errorStream) {
 		new Thread(new Runnable() {
@@ -1046,7 +1151,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		String result = null;
 		fileInputStreamConfig = new FileInputStream(lookUpConfigIni(applicationPath));
 		properties.load(fileInputStreamConfig);
-
+		fileInputStreamConfig.close();
 		String bundles = properties.getProperty("osgi.bundles");
 		LOGGER.info("Bundle: " + swtBotAgentBundlePath);
 		// begin; This part is just for considering the testing of an swt
@@ -1070,6 +1175,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		result = file.getAbsolutePath() + File.separator + "config.ini";
 		fileOutputStream = new FileOutputStream(result);
 		properties.store(fileOutputStream, "Changed for TestEditor run.");
+		fileOutputStream.close();
 		LOGGER.info("New congfig.ini: " + result);
 		return new File(result).getParentFile().getAbsolutePath();
 	}
@@ -1086,6 +1192,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	private File lookUpConfigIni(String applicationPath) {
 		String path = new File(applicationPath).getParentFile().getAbsolutePath();
+		LOGGER.info("Using Applicationpath: " + applicationPath + " with app directory: " + path);
 		File linuxOrWinFile = new File(path + File.separator + "configuration" + File.separator + "config.ini");
 		if (linuxOrWinFile.exists()) {
 			return linuxOrWinFile;
@@ -1120,7 +1227,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	private boolean isLaunched() {
 		try {
 			Socket client = getSocket();
-			LOGGER.info("Is server ready?");
+			LOGGER.info("Is server ready for " + testName + "?");
 			PrintStream os = new PrintStream(client.getOutputStream(), false, CHARSET_UTF_8);
 			os.println("isLaunched");
 			os.flush();
@@ -1131,6 +1238,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			return Boolean.valueOf(s);
 		} catch (UnknownHostException e) {
 			LOGGER.error("isLaunched UnknownHostException: ", e);
+		} catch (ConnectException e) {
+			LOGGER.trace("Server not available.");
 		} catch (IOException e) {
 			LOGGER.error("isLaunched IOException: ", e);
 		}
@@ -1202,13 +1311,12 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see
-	 * org.testeditor.fixture.core.interaction.Fixture#preInvoke(java.lang.reflect
-	 * .Method, java.lang.Object, java.lang.Object[])
+	 * @see org.testeditor.fixture.core.interaction.Fixture#preInvoke(java.lang.
+	 * reflect .Method, java.lang.Object, java.lang.Object[])
 	 */
 	@Override
-	public void preInvoke(Method method, Object instance, Object... convertedArgs) throws InvocationTargetException,
-			IllegalAccessException {
+	public void preInvoke(Method method, Object instance, Object... convertedArgs)
+			throws InvocationTargetException, IllegalAccessException {
 
 		String label = PerformanceLogHandler.getLabel(method, convertedArgs);
 
@@ -1223,8 +1331,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * reflect.Method, java.lang.Object, java.lang.Object[])
 	 */
 	@Override
-	public void postInvoke(Method method, Object instance, Object... convertedArgs) throws InvocationTargetException,
-			IllegalAccessException {
+	public void postInvoke(Method method, Object instance, Object... convertedArgs)
+			throws InvocationTargetException, IllegalAccessException {
 
 		javaMon.stop();
 
@@ -1252,11 +1360,21 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Returns the path to the Workspace of the AUT. Relative paths are
+	 * converted to direct paths.
 	 * 
 	 * @return the path to the workspace of the AUT as String.
+	 * @throws IOException
+	 *             on looking up the real path.
 	 */
-	public String getWorkspacePath() {
-		return workspacePath;
+	public String getWorkspacePath() throws IOException {
+		String workspacePath = System.getProperty("aut.workspace.path");
+
+		if (workspacePath == null) {
+			workspacePath = "@user.home/.testeditor_aut";
+		}
+
+		return new File(workspacePath).getCanonicalPath();
 	}
 
 	/**
@@ -1283,6 +1401,35 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		LOGGER.info("Property search in " + proprtyFileName + " with key " + propertyKey + " and value: "
 				+ propertyValue + " is: " + found);
 		return found;
+	}
+
+	/**
+	 * Creates TestStructure Files in the filesystem of a fitnesse backend
+	 * system. This method doesn't use the api for that and does no
+	 * notifications to the test-editor or fitnsse server.
+	 * 
+	 * @param destinationTestStructure
+	 *            full name of the new one
+	 * @return true on success
+	 * @throws IOException
+	 *             on creation error.
+	 */
+	public boolean createTestStructureFiles(String destinationTestStructure) {
+		String[] tsNameParts = destinationTestStructure.split("\\.");
+
+		try {
+			String destPath = getWorkspacePath() + File.separator + tsNameParts[0] + File.separator + "FitNesseRoot"
+					+ File.separator
+					+ destinationTestStructure.replaceAll("\\.", Matcher.quoteReplacement(File.separator));
+			Path tsDir = Files.createDirectories(Paths.get(destPath));
+			LOGGER.trace("Created: " + tsDir.toAbsolutePath());
+			String xml = "<?xml version=\"1.0\"?><properties><Edit>true</Edit><Files>true</Files><Properties>true</Properties><RecentChanges>true</RecentChanges><Refactor>true</Refactor><Search>true</Search><Test/><Versions>true</Versions><WhereUsed>true</WhereUsed></properties>";
+			Files.write(Paths.get(destPath, "properties.xml"), xml.getBytes());
+			return new File(tsDir.toFile(), "content.txt").createNewFile();
+		} catch (Exception e) {
+			LOGGER.error("Error creating testobject from " + destinationTestStructure, e);
+		}
+		return false;
 	}
 
 	/**
@@ -1320,6 +1467,17 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * Selects an entry in the active auto complete field.
+	 * 
+	 * @param item
+	 *            String to be selected in the auto complete list.
+	 * @return the result of the message.
+	 */
+	public boolean selectElementInAtuocompleteWidget(String item) {
+		return sendMessage("selectElementInAtuocompleteWidget" + COMMAND_DELIMITER + item);
+	}
+
+	/**
 	 * This method checks if a specific line contains a text. Line numbers are
 	 * starting at one.
 	 * 
@@ -1337,8 +1495,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @throws IOException
 	 *             will be thrown if the file not exist
 	 */
-	public boolean checkTextInCodeLine(String testFilePath, String text, int line) throws StopTestException,
-			IOException {
+	public boolean checkTextInCodeLine(String testFilePath, String text, int line)
+			throws StopTestException, IOException {
 		String workspacePath = System.getProperty("aut.workspace.path");
 		if (workspacePath == null || workspacePath.equals("")) {
 			LOGGER.error("aut.workspace.path not set");
@@ -1369,8 +1527,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @throws IOException
 	 *             will be thrown if the file not exist
 	 */
-	public boolean checkNotTextInCodeLine(String testFilePath, String text, int line) throws StopTestException,
-			IOException {
+	public boolean checkNotTextInCodeLine(String testFilePath, String text, int line)
+			throws StopTestException, IOException {
 		String workspacePath = System.getProperty("aut.workspace.path");
 		if (workspacePath == null || workspacePath.equals("")) {
 			LOGGER.error("aut.workspace.path not set");
@@ -1409,6 +1567,177 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 		LOGGER.warn("PATH " + path.toString() + "  " + path.toFile().exists() + "---" + Charset.defaultCharset());
 		List<String> lines = Files.readAllLines(path, Charset.defaultCharset());
 		return lines;
+	}
+
+	/**
+	 * Copy a File or a Directory inside the AUT workspace. Existing target
+	 * files / Directories are overwritten without warnings.
+	 *
+	 * @param relSourcePath
+	 *            the workspace relative path of the source file or directory to
+	 *            copy
+	 * @param relTargetPath
+	 *            the workspace relative path of the target file or directory
+	 */
+	public void copyInWorkspace(String relSourcePath, String relTargetPath) {
+
+		LOGGER.info("kopiere. " + relSourcePath + " nach " + relTargetPath);
+
+		File workspaceDir;
+		try {
+			workspaceDir = new File(getWorkspacePath());
+		} catch (IOException e1) {
+			String msg = "cannot find workspacePath";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+		File source = new File(workspaceDir, relSourcePath);
+		File target = new File(workspaceDir, relTargetPath);
+		Path sourcePath = Paths.get(source.getAbsolutePath());
+		Path targetPath = Paths.get(target.getAbsolutePath());
+
+		if (!source.exists()) {
+			String msg = "cannot copy '" + source + "': File does not exist";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+		if (!source.canRead()) {
+			String msg = "cannot copy '" + source + "': File cannot be read";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+
+		if (source.isDirectory()) {
+			try {
+				copyFolder(sourcePath, targetPath);
+			} catch (IOException e) {
+				String msg = "cannot copy directory '" + source + "' to '" + target + "'";
+				LOGGER.error(msg, e);
+				throw new StopTestException(msg, e);
+			}
+		} else {
+			try {
+				Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+			} catch (IOException e) {
+				String msg = "cannot copy directory '" + source + "' to '" + target + "'";
+				LOGGER.error(msg, e);
+				throw new StopTestException(msg, e);
+			}
+		}
+
+	}
+
+	/**
+	 * delete a given file or directory in the workspace
+	 * 
+	 * @param relTargetPath
+	 *            the workspace relative path of the source file or directory to
+	 *            delete (recursively in the later case)
+	 */
+	public void deleteInWorkspace(String relTargetPath) {
+		File workspaceDir;
+		try {
+			workspaceDir = new File(getWorkspacePath());
+		} catch (IOException e1) {
+			String msg = "cannot find workspacePath";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+		File target = new File(workspaceDir, relTargetPath);
+
+		if (target.exists()) {
+			if (target.isDirectory()) {
+				deleteFolder(target);
+			} else {
+				try {
+					Files.delete(target.toPath());
+				} catch (IOException e) {
+					String msg = "cannot delete file '" + target + "'";
+					LOGGER.error(msg, e);
+					throw new StopTestException(msg, e);
+				}
+			}
+		}
+
+	}
+
+	/**
+	 * Deletes folder recursively.
+	 * 
+	 * @param target
+	 *            to be deleted.
+	 */
+	private void deleteFolder(File target) {
+		List<File> files = Arrays.asList(target.listFiles());
+		for (File file : files) {
+			if (file.isFile()) {
+				try {
+					Files.delete(file.toPath());
+				} catch (IOException e) {
+					String msg = "cannot delete file '" + target + "'";
+					LOGGER.error(msg, e);
+					throw new StopTestException(msg, e);
+				}
+			} else {
+				deleteFolder(file);
+			}
+		}
+		try {
+			Files.delete(target.toPath());
+		} catch (IOException e) {
+			String msg = "cannot delete file '" + target + "'";
+			LOGGER.error(msg, e);
+			throw new StopTestException(msg, e);
+		}
+	}
+
+	/**
+	 * create or overwrite a file in the workspace and fill it with the given
+	 * content.
+	 * 
+	 * @param relTargetPath
+	 *            the workspace relative path of the target file to create
+	 * @param content
+	 *            the content of the new file
+	 */
+	public void createFileInWorkspace(String relTargetPath, String content) {
+		File workspaceDir;
+		try {
+			workspaceDir = new File(getWorkspacePath());
+		} catch (IOException e1) {
+			String msg = "cannot find workspacePath";
+			LOGGER.error(msg);
+			throw new StopTestException(msg);
+		}
+		if (relTargetPath.contains("/")) {
+			try {
+				Files.createDirectories(Paths.get(workspaceDir.getAbsolutePath(),
+						relTargetPath.substring(0, relTargetPath.lastIndexOf("/"))));
+			} catch (IOException e) {
+				String msg = "cannot create file '" + relTargetPath.substring(0, relTargetPath.lastIndexOf("/")) + "'";
+				LOGGER.error(msg, e);
+				throw new StopTestException(msg, e);
+			}
+		}
+		File target = new File(workspaceDir, relTargetPath);
+
+		deleteInWorkspace(relTargetPath);
+
+		try {
+			PrintWriter pw = new PrintWriter(target);
+			pw.print(content);
+			pw.close();
+		} catch (FileNotFoundException e) {
+			String msg = "cannot create file '" + target + "'";
+			LOGGER.error(msg, e);
+			throw new StopTestException(msg, e);
+		}
+
+	}
+
+	public boolean checkValueInDropDownBox(String dropDownBoxID, String value) {
+		return sendMessage(
+				"checkDropDownContains" + COMMAND_DELIMITER + getLocator(dropDownBoxID) + COMMAND_DELIMITER + value);
 	}
 
 }
