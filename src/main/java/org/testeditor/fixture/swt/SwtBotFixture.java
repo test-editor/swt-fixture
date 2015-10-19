@@ -396,8 +396,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return true if the amount of items equals the expectedCount.
 	 */
 	public boolean countItemsEquals(String locator, String expectedCount) {
-		return sendMessage(
-				"countItemsEquals" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + expectedCount);
+		return sendMessage("countItemsEquals" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
+				+ expectedCount);
 	}
 
 	/**
@@ -425,6 +425,87 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
+	 * <pre>
+	 * This method checks in a given table and column the searched string in every row.
+	 * 
+	 * Example: searched string = login and column in which to be searched = Name
+	 * 
+	 *  Result Table
+	 * 
+	 *  |        Name          |        Path          |
+	 *  |______________________|______________________|
+	 *  |      abcd.login.ab   |  Demo.abcd.login.ab  |
+	 *  |______________________|______________________|
+	 *  |      efg.login.fg    |  Demo.efg.login.fg   |
+	 *  |______________________|______________________|
+	 *  |      loginAbc        |  Demo.login          |
+	 *  |______________________|______________________|
+	 *  |      klm.login       |  Demo.klm.login      |
+	 * 
+	 * 
+	 * </pre>
+	 * 
+	 * the result of this method is true when in all rows in given column the
+	 * searched string is found
+	 * 
+	 * 
+	 * 
+	 * @param locator
+	 *            unique id of table
+	 * @param column
+	 *            of table
+	 * @param value
+	 *            searched value in each row
+	 * @return true if all entries in table in given column contains given value
+	 */
+	public boolean checkTableIfInColumnContainsInAllRows(String locator, String column, String value) {
+		return sendMessage("checkTableIfInColumnContainsInAllRows" + COMMAND_DELIMITER + getLocator(locator)
+				+ COMMAND_DELIMITER + column + COMMAND_DELIMITER + value);
+	}
+
+	/**
+	 * <pre>
+	 * This method checks in a given table and column,row the searched string is found.
+	 * 
+	 * Example: searched string = login and column in which to be searched = Name
+	 * 
+	 *  Result Table
+	 * 
+	 *  |        Name          |        Path          |
+	 *  |______________________|______________________|
+	 *  |      abcd.login.ab   |  Demo.abcd.login.ab  |
+	 *  |______________________|______________________|
+	 *  |      efg.login.fg    |  Demo.efg.login.fg   |
+	 *  |______________________|______________________|
+	 *  |      loginAbc        |  Demo.loginAbc       |
+	 *  |______________________|______________________|
+	 *  |      klm.login       |  Demo.klm.login      |
+	 * 
+	 * 
+	 * </pre>
+	 * 
+	 * the result of this method is true when in all rows in given column the
+	 * searched string is found
+	 * 
+	 * 
+	 * 
+	 * @param locator
+	 *            unique id of table
+	 * @param column
+	 *            of table
+	 * 
+	 * @param row
+	 *            searched value in special row
+	 * @param value
+	 *            searched value
+	 * @return true if all entries in table in given column contains given value
+	 */
+	public boolean checkTableIfInColumnAndRowContains(String locator, String column, String row, String value) {
+		return sendMessage("checkTableIfInColumnAndRowContains" + COMMAND_DELIMITER + getLocator(locator)
+				+ COMMAND_DELIMITER + column + COMMAND_DELIMITER + row + COMMAND_DELIMITER + value);
+	}
+
+	/**
 	 * sets playbacktime of SWTBot.
 	 * 
 	 * @param milliSeconds
@@ -438,8 +519,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	/**
-	 * Waits for the given period of time before executing the next command.
-	 * <br />
+	 * Waits for the given period of time before executing the next command. <br />
 	 * 
 	 * @param timeToWait
 	 *            Time to wait in seconds
@@ -526,8 +606,7 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return the result of the message.
 	 */
 	public boolean compareLabelByIdTextNotInWidget(String locator, String comptext) {
-		return !sendMessage(
-				"compareLabelById" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + comptext);
+		return !sendMessage("compareLabelById" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + comptext);
 	}
 
 	/**
@@ -575,8 +654,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return true, after sending the keys
 	 */
 	public boolean pressGlobalShortcut(String modificationKeys, String key) {
-		return sendMessage(
-				"pressGlobalShortcut" + COMMAND_DELIMITER + getLocator(modificationKeys) + COMMAND_DELIMITER + key);
+		return sendMessage("pressGlobalShortcut" + COMMAND_DELIMITER + getLocator(modificationKeys) + COMMAND_DELIMITER
+				+ key);
 	}
 
 	/**
@@ -588,8 +667,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return the result of the message.
 	 */
 	public boolean selectLineInText(String locator, String lineNumber) {
-		return sendMessage(
-				"selectLineInText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + lineNumber);
+		return sendMessage("selectLineInText" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
+				+ lineNumber);
 	}
 
 	/**
@@ -700,8 +779,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean compareTextInStyledById(String id, String compText) {
 		LOGGER.info("compareTextInStyledById " + id + " " + compText);
-		return sendMessage(
-				"compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER + compText);
+		return sendMessage("compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER
+				+ compText);
 	}
 
 	/**
@@ -716,8 +795,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean compareTextNotInStyledById(String id, String compText) {
 		LOGGER.info("compareTextInStyledById " + id + " " + compText);
-		return !sendMessage(
-				"compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER + compText);
+		return !sendMessage("compareTextInStyledById" + COMMAND_DELIMITER + getLocator(id) + COMMAND_DELIMITER
+				+ compText);
 	}
 
 	/**
@@ -730,8 +809,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @return true, if the text is found, else false
 	 */
 	public boolean checkTextNotExistInWidgets(String locator, String text) {
-		return !sendMessage(
-				"checkTextExistInWidgets" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER + text);
+		return !sendMessage("checkTextExistInWidgets" + COMMAND_DELIMITER + getLocator(locator) + COMMAND_DELIMITER
+				+ text);
 	}
 
 	/**
@@ -791,8 +870,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 */
 	public boolean isFitNesseProjectServerRunning(String port, String projectName) {
 
-		HttpGet httpGet = new HttpGet(
-				getFitnesseUrl(port) + projectName + "?search&searchString=" + projectName + "&searchType=title");
+		HttpGet httpGet = new HttpGet(getFitnesseUrl(port) + projectName + "?search&searchString=" + projectName
+				+ "&searchType=title");
 		httpGet.setHeader("Content-Type", "application/json");
 
 		String strOfWikiPages;
@@ -943,12 +1022,11 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 			Thread.sleep(100);
 			count++;
 			if (count > 100) {
-				LOGGER.error(
-						">>>>>>> Old process blocks AUT start for 10 seconds. Giving up for test: " + testName + ".");
+				LOGGER.error(">>>>>>> Old process blocks AUT start for 10 seconds. Giving up for test: " + testName
+						+ ".");
 				try {
-					List<String> allLines = Files.readAllLines(
-							new File(new File(getWorkspacePath(), ".metadata"), ".log").toPath(),
-							Charset.forName("UTF-8"));
+					List<String> allLines = Files.readAllLines(new File(new File(getWorkspacePath(), ".metadata"),
+							".log").toPath(), Charset.forName("UTF-8"));
 					LOGGER.error("AUT .log content:");
 					for (String string : allLines) {
 						LOGGER.error(string);
@@ -1315,8 +1393,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * reflect .Method, java.lang.Object, java.lang.Object[])
 	 */
 	@Override
-	public void preInvoke(Method method, Object instance, Object... convertedArgs)
-			throws InvocationTargetException, IllegalAccessException {
+	public void preInvoke(Method method, Object instance, Object... convertedArgs) throws InvocationTargetException,
+			IllegalAccessException {
 
 		String label = PerformanceLogHandler.getLabel(method, convertedArgs);
 
@@ -1331,8 +1409,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * reflect.Method, java.lang.Object, java.lang.Object[])
 	 */
 	@Override
-	public void postInvoke(Method method, Object instance, Object... convertedArgs)
-			throws InvocationTargetException, IllegalAccessException {
+	public void postInvoke(Method method, Object instance, Object... convertedArgs) throws InvocationTargetException,
+			IllegalAccessException {
 
 		javaMon.stop();
 
@@ -1495,8 +1573,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @throws IOException
 	 *             will be thrown if the file not exist
 	 */
-	public boolean checkTextInCodeLine(String testFilePath, String text, int line)
-			throws StopTestException, IOException {
+	public boolean checkTextInCodeLine(String testFilePath, String text, int line) throws StopTestException,
+			IOException {
 		String workspacePath = System.getProperty("aut.workspace.path");
 		if (workspacePath == null || workspacePath.equals("")) {
 			LOGGER.error("aut.workspace.path not set");
@@ -1527,8 +1605,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	 * @throws IOException
 	 *             will be thrown if the file not exist
 	 */
-	public boolean checkNotTextInCodeLine(String testFilePath, String text, int line)
-			throws StopTestException, IOException {
+	public boolean checkNotTextInCodeLine(String testFilePath, String text, int line) throws StopTestException,
+			IOException {
 		String workspacePath = System.getProperty("aut.workspace.path");
 		if (workspacePath == null || workspacePath.equals("")) {
 			LOGGER.error("aut.workspace.path not set");
@@ -1736,8 +1814,8 @@ public class SwtBotFixture implements StoppableFixture, Fixture {
 	}
 
 	public boolean checkValueInDropDownBox(String dropDownBoxID, String value) {
-		return sendMessage(
-				"checkDropDownContains" + COMMAND_DELIMITER + getLocator(dropDownBoxID) + COMMAND_DELIMITER + value);
+		return sendMessage("checkDropDownContains" + COMMAND_DELIMITER + getLocator(dropDownBoxID) + COMMAND_DELIMITER
+				+ value);
 	}
 
 }
